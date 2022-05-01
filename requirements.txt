@@ -1,0 +1,6 @@
+gym
+numpy
+tensorflow==2.5
+tensorflow-gpu==2.5
+pandas
+finta
