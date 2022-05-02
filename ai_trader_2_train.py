@@ -37,7 +37,7 @@ def addextra(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def validate(agent: Agent, env:environ.TradeEnv, label:str) -> float:
-    print('Model validating ...')
+    print('Model validating (%s)...' % label)
     VALIDATE_NO = 500
     wins = 0
     losts = 0
@@ -89,19 +89,19 @@ if __name__ == '__main__':
     
     data = pd.read_csv('./data/BTC_19_22_5m.csv', index_col="startTime")
     data = addextra(data)
-    print('train environ data loaded')
+    print('train data loaded')
     data_test = pd.read_csv('./data/ETH_19_22_5m.csv', index_col="startTime")
     data_test = addextra(data_test)
-    print('test environ data loaded')
+    print('test data loaded')
     CANDLES = 72
     env = environ.TradeEnv(data=data, candles= CANDLES)
     env_test = environ.TradeEnv(data=data_test, candles= CANDLES)
 
     N_TRADE = 170000
     RENDER_MODE = 'computer'
-    ACTIVATION = 'sigmoid'
+    ACTIVATION = 'relu'
     GAMMA = 0.99
-    LR = 0.1
+    LR = 0.01
     EPSILON_DEC = 1e-5
     EPSILON_START = 1
     EPSILON_END = 0.1
