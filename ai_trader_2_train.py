@@ -96,11 +96,11 @@ if __name__ == '__main__':
     env = environ.TradeEnv(data=data, candles= CANDLES)
     env_test = environ.TradeEnv(data=data_test, candles= CANDLES)
 
-    N_TRADE = 70000
+    N_TRADE = 170000
     RENDER_MODE = 'computer'
     ACTIVATION = 'sigmoid'
     GAMMA = 0.99
-    LR = 0.0000001
+    LR = 0.1
     EPSILON_DEC = 1e-5
     EPSILON_START = 1
     EPSILON_END = 0.1
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     # agent.load_model()
     
     wins = 0
-    losts = 0
+    losts = 0    
     for i in range(N_TRADE):
         done = False
         score = 0
@@ -135,9 +135,9 @@ if __name__ == '__main__':
             observation = observation_
             loss = agent.learn()
             if loss == None:
-                agent.log(['f1/reward', 'f1/epsilon'],[reward, agent.epsilon])
+                agent.log(['learning/reward', 'learning/epsilon'],[reward, agent.epsilon])
             else:
-                agent.log(['f1/loss', 'f1/reward', 'f1/epsilon'],[loss, reward, agent.epsilon])
+                agent.log(['learning/loss', 'learning/reward', 'learning/epsilon'],[loss, reward, agent.epsilon])
             losses.append(loss)
             env.render(mode=RENDER_MODE)
         winlost = info['winlost']
@@ -146,14 +146,15 @@ if __name__ == '__main__':
         if winlost == -1:
             losts += 1
         if wins+losts >= 100:
-            agent.log(['winlost/win', 'winlost/lost','winlost/ratio'],[wins, losts, wins/(wins+losts)])
+            agent.log(['performance/win', 'performance/lost','performance/ratio'],[wins, losts, wins/(wins+losts)])
             wins=0
             losts=0
 
         eps_history.append(agent.epsilon)
         scores.append(score)
         steps.append(stpes_count)
-        agent.log(['f2/sum_step', 'f2/score'], [stpes_count, score])
+        profit = info['profit']
+        agent.log(['performance/steps//trade', 'performance/profit'], [stpes_count, profit])
         if not i % 50:
             avg_score = np.mean(scores[-100:])
             print('Agent episode: ', i, 'score %.2f' % score,

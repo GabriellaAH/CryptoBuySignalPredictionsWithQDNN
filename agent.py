@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow.keras as keras 
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
-           
+      
 class ReplayBuffer():
     def __init__(self, max_size, input_dims):
         self.mem_size = max_size
@@ -39,6 +39,11 @@ class ReplayBuffer():
         return states, actions, rewards, states_, terminal
 
 def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims, fc3_dims, activation):  
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=lr,
+        decay_steps=10000,
+        decay_rate=0.9)
+    
     model = keras.Sequential([
         keras.layers.Dense(input_dims, activation=activation),
         keras.layers.Dense(fc1_dims, activation=activation),
@@ -46,7 +51,7 @@ def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims, fc3_dims, activatio
         keras.layers.Dense(fc3_dims, activation=activation),
         keras.layers.Dense(n_actions, activation=None)])
     
-    model.compile(optimizer=Adam(learning_rate=lr), loss='mean_squared_error')    
+    model.compile(optimizer=Adam(learning_rate=lr_schedule), loss='mean_squared_error')    
     return model
 
 class Agent():

@@ -25,7 +25,7 @@ Buy3: Risk Reward ratio is 1:3 when the TP is 3 times the SL values (6 times ATR
 ## Hyperparameters 
 -   **ACTIVATION**: default ‘Sigmoid’ activation function for the keras model. 
 -   **GAMMA**: default 0.99 set how important is the current reward
--   **LR**: default 0.00000025 learning rate shows how important the current values.
+-   **LR**: default 0.1 initial learning rate, shows how important the current values.
 -   **EPSILON_DEC**: default 1e-5 epsilon decay value
 -   **EPSILON_START** default 1 random step /predicted step rate start value
 -   **EPSILON_END** default 0.1 random step /predicted step rate minimum value
