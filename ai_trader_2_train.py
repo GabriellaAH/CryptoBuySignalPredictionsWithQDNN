@@ -36,13 +36,14 @@ def addextra(df: pd.DataFrame) -> pd.DataFrame:
     df = df.iloc[300:, :]    
     return df
 
-def validate(agent: Agent, env:environ.TradeEnv) -> float:
+def validate(agent: Agent, env:environ.TradeEnv, label:str) -> float:
     print('Model validating ...')
     VALIDATE_NO = 500
     wins = 0
     losts = 0
     scores = 0
     rewards = 0
+    category = 'validete_' + label
     for i in range(VALIDATE_NO):
         done = False
         observation = env.reset()
@@ -58,7 +59,7 @@ def validate(agent: Agent, env:environ.TradeEnv) -> float:
             losts += 1
         scores += profit
     agent.log(
-        ['validate/win', 'validate/lost','validate/ratio', 'validate/profit', 'validate/reward'],
+        [category+'/win', category+'/lost',category+'/ratio', category+'/profit', category+'/reward'],
         [wins, losts, wins/(wins+losts), scores/VALIDATE_NO, rewards/VALIDATE_NO]
     )
     wins=0
@@ -159,12 +160,15 @@ if __name__ == '__main__':
             avg_score = np.mean(scores[-100:])
             print('Agent episode: ', i, 'score %.2f' % score,
                     'average_score %.2f' % avg_score,
-                    'epsilon %.6f' % agent.epsilon)
+                    'epsilon %.6f' % agent.epsilon,
+                    'loss: %.6f' % loss)
         if not i % 1000 and i>0:
-            profit = validate(agent=agent, env=env_test)
+            profit = validate(agent=agent, env=env_test, label='Test')
             if profit > best_validated_profit:
                 best_validated_profit = profit
                 agent.q_eval.save(('autosave/best_model_%.5f' % profit))
+            profit = validate(agent=agent, env=env, label='Train')
+                
     filename1 = 'agent.png'
     
     x = [i+1 for i in range(N_TRADE)]

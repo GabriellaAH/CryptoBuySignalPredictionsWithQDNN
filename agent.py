@@ -43,8 +43,9 @@ def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims, fc3_dims, activatio
         initial_learning_rate=lr,
         decay_steps=10000,
         decay_rate=0.9)
-    
+    normalizer = tf.keras.layers.experimental.preprocessing.Normalization(axis=None)
     model = keras.Sequential([
+        normalizer,
         keras.layers.Dense(input_dims, activation=activation),
         keras.layers.Dense(fc1_dims, activation=activation),
         keras.layers.Dense(fc2_dims, activation=activation),
