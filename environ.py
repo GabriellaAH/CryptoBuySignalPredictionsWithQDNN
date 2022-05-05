@@ -14,8 +14,8 @@ import random
 class Actions(enum.Enum):    
     Hold = 0
     Buy1 = 1 # sl: atr2 tp: atr3 RiskReward: 1:1.5
-    # Buy2 = 2 # sl: atr2 tp: atr4 RR: 1:2
-    # Buy3 = 3 # sl: atr2 tp: atr6 RR: 1:3
+    Buy2 = 2 # sl: atr2 tp: atr4 RR: 1:2
+    Buy3 = 3 # sl: atr2 tp: atr6 RR: 1:3
 
 class State:
     def __init__(self, data:pd.DataFrame, candles:int):
@@ -53,7 +53,7 @@ class State:
     @property
     def shape(self):
         # close, volume
-        return self.candles * 14 + 11,
+        return self.candles * 13 + 12,
 
     def encode(self):
         """
@@ -70,7 +70,7 @@ class State:
         #     # datas.append(numpy.float32(0))
         #     datas.append(numpy.float32((self.offset-self.start_offset)/1000))
         cmf = src.loc[index_labels[self.offset], 'cmf'] 
-        if cmf > 0:
+        if cmf > 50:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
@@ -81,14 +81,19 @@ class State:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
-            
+        macd = src.loc[index_labels[self.offset], 'macd'] 
+        signal = src.loc[index_labels[self.offset], 'signal'] 
+        if macd < 0 and signal < 0 :
+            datas.append(numpy.float32(1))
+        else:
+            datas.append(numpy.float32(0))                    
         rsi = src.loc[index_labels[self.offset], 'rsi']
         prev_rsi = src.loc[index_labels[self.offset-1], 'rsi']
-        if rsi < 30:
+        if rsi < 45:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
-        if prev_rsi < 30 and rsi > 30:
+        if prev_rsi < 45 and rsi > 45:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
@@ -110,11 +115,11 @@ class State:
             datas.append(numpy.float32(0))            
         adx = src.loc[index_labels[self.offset], 'adx']
         adxl = src.loc[index_labels[self.offset], 'adxl']
-        if adx > 50:
+        if adx > 25:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
-        if adxl > 50:
+        if adxl > 25:
             datas.append(numpy.float32(1))
         else:
             datas.append(numpy.float32(0))
@@ -134,12 +139,12 @@ class State:
                     
         
         for x in range(self.offset-self.candles+1, self.offset+1):
-            closep = src.loc[index_labels[x], 'pclose'] /10
-            vol = src.loc[index_labels[x], 'pvolume'] / 1000000
+            # closep = src.loc[index_labels[x], 'pclose'] /10
+            # vol = src.loc[index_labels[x], 'pvolume'] / 1000000
             ema = src.loc[index_labels[x], 'close'] / src.loc[index_labels[x], 'ema100'] /10
             sma = src.loc[index_labels[x], 'close'] / src.loc[index_labels[x], 'sma'] /10
-            macd = src.loc[index_labels[x], 'pmacd'] /10000
-            signal = src.loc[index_labels[x], 'psignal'] /10000
+            macd = src.loc[index_labels[x], 'pmacd'] /1000
+            signal = src.loc[index_labels[x], 'psignal'] /1000
             rsi = src.loc[index_labels[x], 'rsi']  / 100
             highp = src.loc[index_labels[x], 'phigh'] /10
             lowp = src.loc[index_labels[x], 'plow'] /10
@@ -152,13 +157,20 @@ class State:
             adxl = src.loc[index_labels[x], 'adxl'] / 100
             stochk = src.loc[index_labels[x], 'stochk'] / 100
             stochd = src.loc[index_labels[x], 'stochd'] / 100
+            bbup = src.loc[index_labels[x], 'pbbup'] 
+            bblow = src.loc[index_labels[x], 'pbblow'] 
+            vol = src.loc[index_labels[x], 'volume']
+            if vol != 0:
+                closep = (src.loc[index_labels[x], 'close'] - src.loc[index_labels[x-1], 'close']) / vol
+            else:
+                closep = 0
             
             datas.append(numpy.float32(ema))
             datas.append(numpy.float32(sma))
-            datas.append(numpy.float32(highp))
-            datas.append(numpy.float32(lowp))
+            # datas.append(numpy.float32(highp))
+            # datas.append(numpy.float32(lowp))
             datas.append(numpy.float32(closep))
-            datas.append(numpy.float32(vol))
+            # datas.append(numpy.float32(vol))
             datas.append(numpy.float32(macd))
             datas.append(numpy.float32(signal))
             datas.append(numpy.float32(rsi))
@@ -167,6 +179,8 @@ class State:
             datas.append(numpy.float32(adxl))
             datas.append(numpy.float32(stochk))
             datas.append(numpy.float32(stochd))
+            datas.append(numpy.float32(bbup))
+            datas.append(numpy.float32(bblow))
             
         res = numpy.array(datas)   
         res[res == inf] = 0
@@ -245,9 +259,22 @@ class State:
         if not done and not self.haveposition:
             if action == Actions.Buy1:
                 self.open_price = closep
-                self.tp = closep + atr * 4
-                self.sl = closep - atr * 2
+                self.tp = closep + atr * 4.5
+                self.sl = closep - atr * 3
                 self.buy_type = 1
+                self.haveposition = True
+                if self.is_winner():
+                    reward += 100 * 1.5
+                    self.profit = 1.5
+                else:
+                    reward += -100
+                    self.profit = -1
+                done |= True              
+            if action == Actions.Buy2:
+                self.open_price = closep
+                self.tp = closep + atr * 6
+                self.sl = closep - atr * 3
+                self.buy_type = 2
                 self.haveposition = True
                 if self.is_winner():
                     reward += 100 * 2
@@ -256,40 +283,32 @@ class State:
                     reward += -100
                     self.profit = -1
                 done |= True
-            if action == Actions.Hold:
-                tp = closep + atr * 4
-                sl = closep - atr * 2
-                if self.is_winner(tp=tp, sl=sl):
-                    reward += -1
+            if action == Actions.Buy3:
+                self.open_price = closep
+                self.tp = closep + atr * 9
+                self.sl = closep - atr * 3
+                self.buy_type = 3
+                self.haveposition = True
+                if self.is_winner():
+                    reward += 100 * 3
+                    self.profit = 3
                 else:
-                    reward += 1
-                
-            # if action == Actions.Buy2:
-            #     self.open_price = closep
-            #     self.tp = closep + atr * 4
-            #     self.sl = closep - atr * 2
-            #     self.buy_type = 2
-            #     self.haveposition = True
-            #     if self.is_winner():
-            #         reward += 500 * 2
-            #         self.profit = 2
-            #     else:
-            #         reward += -500
-            #         self.profit = -1
-            #     done |= True
-            # if action == Actions.Buy3:
-            #     self.open_price = closep
-            #     self.tp = closep + atr * 6
-            #     self.sl = closep - atr * 2
-            #     self.buy_type = 3
-            #     self.haveposition = True
-            #     if self.is_winner():
-            #         reward += 500 * 3
-            #         self.profit = 3
-            #     else:
-            #         reward += -500
-            #         self.profit = -1
-            #     done |= True
+                    reward += -100
+                    self.profit = -1
+                done |= True
+            if action == Actions.Hold:
+                tp = closep + atr * 4.5
+                sl = closep - atr * 3
+                if self.is_winner(tp=tp, sl=sl):
+                    reward += -20
+                    tp = closep + atr * 6
+                    if self.is_winner(tp=tp, sl=sl):
+                        reward += -10                         
+                        tp = closep + atr * 9
+                        if self.is_winner(tp=tp, sl=sl):
+                            reward += -10
+                else:
+                    reward += 0.1
             # if action == Actions.Buy1 or action == Actions.Buy2 or action == Actions.Buy3:
             #     if ema < closep:
             #         reward += 5

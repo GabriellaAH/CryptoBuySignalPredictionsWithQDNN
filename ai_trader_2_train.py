@@ -25,6 +25,10 @@ def addextra(df: pd.DataFrame) -> pd.DataFrame:
     df['adxl'] = TA.ADX(df, period=288)
     df['stochk'] = TA.STOCH(df)
     df['stochd'] = TA.STOCHD(df)
+    df['bbup'] = TA.BBANDS(df)['BB_UPPER']
+    df['bblow'] = TA.BBANDS(df)['BB_LOWER']
+    df['pbbup'] = (df['bbup'] - df['close']) / df['close']
+    df['pbblow'] = (df['bblow'] - df['close']) / df['close']    
     df['popen'] = df["open"].pct_change()
     df['phigh'] = df["high"] / df["close"]
     df['plow'] = df["low"] / df["close"]
@@ -38,29 +42,37 @@ def addextra(df: pd.DataFrame) -> pd.DataFrame:
 
 def validate(agent: Agent, env:environ.TradeEnv, label:str) -> float:
     print('Model validating (%s)...' % label)
-    VALIDATE_NO = 500
+    VALIDATE_NO = 100
     wins = 0
     losts = 0
     scores = 0
-    rewards = 0
-    category = 'validete_' + label
+    rewards = 0 
+    category = 'validate_' + label
+    stpes_count = 0
     for i in range(VALIDATE_NO):
         done = False
         observation = env.reset()
+        steps = 0
         while not done:
-            agent.choose_action(observation, False)
+            action = agent.choose_action(observation, False)
             observation, reward, done, info = env.step(action)
             rewards += reward
+            stpes_count += 1
+            steps += 1
+            if steps > 1000:
+                done = True
+                losts += 1
+                return -1
         winlost = info['winlost']
-        profit = info['profit']
+        profit = info['profit']        
         if winlost == 1:
             wins += 1
         if winlost == -1:
             losts += 1
         scores += profit
     agent.log(
-        [category+'/win', category+'/lost',category+'/ratio', category+'/profit', category+'/reward'],
-        [wins, losts, wins/(wins+losts), scores/VALIDATE_NO, rewards/VALIDATE_NO]
+        [category+'/win', category+'/lost',category+'/ratio', category+'/profit', category+'/reward', category+'/avg_steps'],
+        [wins, losts, wins/(wins+losts), scores/VALIDATE_NO, rewards/VALIDATE_NO, stpes_count/VALIDATE_NO]
     )
     wins=0
     losts=0
@@ -97,14 +109,14 @@ if __name__ == '__main__':
     env = environ.TradeEnv(data=data, candles= CANDLES)
     env_test = environ.TradeEnv(data=data_test, candles= CANDLES)
 
-    N_TRADE = 170000
+    N_TRADE = 200000
     RENDER_MODE = 'computer'
     ACTIVATION = 'relu'
-    GAMMA = 0.99
-    LR = 0.01
+    GAMMA = 0.8
+    LR = 0.1
     EPSILON_DEC = 1e-5
     EPSILON_START = 1
-    EPSILON_END = 0.1
+    EPSILON_END = 0.05
     
     agent = Agent(gamma=GAMMA, epsilon=EPSILON_START, lr=LR, 
                 input_dims=env.observation_space.shape, epsilon_dec=EPSILON_DEC,
@@ -162,7 +174,7 @@ if __name__ == '__main__':
                     'average_score %.2f' % avg_score,
                     'epsilon %.6f' % agent.epsilon,
                     'loss: %.6f' % loss)
-        if not i % 1000 and i>0:
+        if not i % 1000 and i>20000:
             profit = validate(agent=agent, env=env_test, label='Test')
             if profit > best_validated_profit:
                 best_validated_profit = profit

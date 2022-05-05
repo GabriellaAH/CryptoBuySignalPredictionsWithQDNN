@@ -21,6 +21,7 @@ Buy3: Risk Reward ratio is 1:3 when the TP is 3 times the SL values (6 times ATR
 -   **ADX** – Trend Strength Indicator (**288 candles**), buy signal when the indicator is above 50
 -   **SMA** – Simple Moving Average 1440 periods (5 days) buy signal when the price is above the SMA line
 -   **STOCHASTIC K** line and **STOCHASTIC D** line buy signal when stochastic below 20 extra buy signal when K line cross D line below 20 
+-   **Bollinger Bands** Upper and lower brand with default settings
 
 ## Hyperparameters 
 -   **ACTIVATION**: default ‘Sigmoid’ activation function for the keras model. 
