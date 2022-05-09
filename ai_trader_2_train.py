@@ -42,7 +42,7 @@ def addextra(df: pd.DataFrame) -> pd.DataFrame:
 
 def validate(agent: Agent, env:environ.TradeEnv, label:str) -> float:
     print('Model validating (%s)...' % label)
-    VALIDATE_NO = 100
+    VALIDATE_NO = 500
     wins = 0
     losts = 0
     scores = 0
@@ -109,18 +109,18 @@ if __name__ == '__main__':
     env = environ.TradeEnv(data=data, candles= CANDLES)
     env_test = environ.TradeEnv(data=data_test, candles= CANDLES)
 
-    N_TRADE = 200000
+    N_TRADE = 2000000
     RENDER_MODE = 'computer'
     ACTIVATION = 'relu'
-    GAMMA = 0.8
+    GAMMA = 0.99
     LR = 0.1
     EPSILON_DEC = 1e-5
     EPSILON_START = 1
-    EPSILON_END = 0.05
+    EPSILON_END = 0.04
     
     agent = Agent(gamma=GAMMA, epsilon=EPSILON_START, lr=LR, 
                 input_dims=env.observation_space.shape, epsilon_dec=EPSILON_DEC,
-                n_actions=env.action_space.n, mem_size=1000000, batch_size=1,
+                n_actions=env.action_space.n, mem_size=1000000, batch_size=500,
                 epsilon_end=EPSILON_END, fname='model1.tf_mod', activation=ACTIVATION)
     scores = []
     eps_history = []
@@ -132,6 +132,7 @@ if __name__ == '__main__':
     
     wins = 0
     losts = 0    
+    loss = 0.0
     for i in range(N_TRADE):
         done = False
         score = 0

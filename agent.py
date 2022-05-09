@@ -43,14 +43,12 @@ def build_dqn(lr, n_actions, input_dims, fc1_dims, fc2_dims, fc3_dims, activatio
         initial_learning_rate=lr,
         decay_steps=10000,
         decay_rate=0.9)
-    normalizer = tf.keras.layers.experimental.preprocessing.Normalization(axis=None)
     model = keras.Sequential([
-        normalizer,
         keras.layers.Dense(input_dims, activation=activation),
         keras.layers.Dense(fc1_dims, activation=activation),
         keras.layers.Dense(fc2_dims, activation=activation),
         keras.layers.Dense(fc3_dims, activation=activation),
-        keras.layers.Dense(n_actions, activation=None)])
+        keras.layers.Dense(n_actions, activation='softmax')])
     
     model.compile(optimizer=Adam(learning_rate=lr_schedule), loss='mean_squared_error')    
     return model
@@ -67,7 +65,7 @@ class Agent():
         self.batch_size = batch_size
         self.model_file = fname
         self.memory = ReplayBuffer(mem_size, input_dims)
-        self.q_eval = build_dqn(lr, n_actions, int(input_dims[0]), 1440, 512, 256, activation)
+        self.q_eval = build_dqn(lr, n_actions, int(input_dims[0]), 2328, 512, 256, activation)
         log_dir = "logs/train/" + fname
         self.tensorboard = keras.callbacks.TensorBoard(
             log_dir=log_dir,
@@ -96,7 +94,7 @@ class Agent():
 
     def learn(self):
         if self.memory.mem_cntr < self.batch_size:
-            return
+            return 0.0
 
         states, actions, rewards, states_, dones = \
                 self.memory.sample_buffer(self.batch_size)

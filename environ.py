@@ -53,7 +53,7 @@ class State:
     @property
     def shape(self):
         # close, volume
-        return self.candles * 13 + 12,
+        return self.candles * 15 + 12,
 
     def encode(self):
         """
@@ -139,15 +139,15 @@ class State:
                     
         
         for x in range(self.offset-self.candles+1, self.offset+1):
-            # closep = src.loc[index_labels[x], 'pclose'] /10
-            # vol = src.loc[index_labels[x], 'pvolume'] / 1000000
+            closep = src.loc[index_labels[x], 'pclose'] /10
+            volp = src.loc[index_labels[x], 'pvolume'] / 1000000
             ema = src.loc[index_labels[x], 'close'] / src.loc[index_labels[x], 'ema100'] /10
             sma = src.loc[index_labels[x], 'close'] / src.loc[index_labels[x], 'sma'] /10
             macd = src.loc[index_labels[x], 'pmacd'] /1000
             signal = src.loc[index_labels[x], 'psignal'] /1000
             rsi = src.loc[index_labels[x], 'rsi']  / 100
-            highp = src.loc[index_labels[x], 'phigh'] /10
-            lowp = src.loc[index_labels[x], 'plow'] /10
+            # highp = src.loc[index_labels[x], 'phigh'] /10
+            # lowp = src.loc[index_labels[x], 'plow'] /10
             cmf = src.loc[index_labels[x], 'cmf'] / 100
             if cmf > 1:
                 cmf = 1
@@ -161,16 +161,17 @@ class State:
             bblow = src.loc[index_labels[x], 'pbblow'] 
             vol = src.loc[index_labels[x], 'volume']
             if vol != 0:
-                closep = (src.loc[index_labels[x], 'close'] - src.loc[index_labels[x-1], 'close']) / vol
+                closepv = (src.loc[index_labels[x], 'close'] - src.loc[index_labels[x-1], 'close']) / vol
             else:
-                closep = 0
+                closepv = 0
             
             datas.append(numpy.float32(ema))
             datas.append(numpy.float32(sma))
             # datas.append(numpy.float32(highp))
             # datas.append(numpy.float32(lowp))
+            datas.append(numpy.float32(closepv))
             datas.append(numpy.float32(closep))
-            # datas.append(numpy.float32(vol))
+            datas.append(numpy.float32(volp))
             datas.append(numpy.float32(macd))
             datas.append(numpy.float32(signal))
             datas.append(numpy.float32(rsi))
@@ -194,23 +195,37 @@ class State:
         return -1
 
     def is_winner(self, tp=None, sl=None):
+        minp = self.data.loc[self.index_labels[self.offset], 'low'] 
+        if tp != None and sl != None and minp < sl:
+            return False, 1
+        elif minp < self.sl:
+            return False, 1
+        akt_open = self.data.loc[self.index_labels[self.offset], 'open'] 
+        akt_close = self.data.loc[self.index_labels[self.offset], 'close'] 
+        next_close = self.data.loc[self.index_labels[self.offset-1], 'close'] 
+        mp = 1
+        if akt_open > akt_close:
+            mp = mp / 2
+        if akt_open > next_close:
+            mp = mp / 2
+        
         for i in range(self.offset+1, self.offset+50):
             minp = self.data.loc[self.index_labels[i], 'low'] 
             maxp = self.data.loc[self.index_labels[i], 'high'] 
             if tp != None and sl != None:
                 if minp <= sl:
-                    return False
+                    return False, 1
                 if maxp >= tp:
-                    return True
+                    return True, mp
             else:    
                 if minp <= self.sl:
                     self.win_lost = -1
-                    return False
+                    return False, 1
                 if maxp >= self.tp:
                     self.win_lost = 1
-                    return True
+                    return True, mp
         self.win_lost = 0
-        return False
+        return False, 1
                 
     def step(self, action):
         """
@@ -225,46 +240,20 @@ class State:
         reward = 0
         done = False
         closep =  self.data.loc[self.index_labels[self.offset], 'close']
-        # minp = self.data.loc[self.index_labels[self.offset], 'low'] 
-        # maxp = self.data.loc[self.index_labels[self.offset], 'high'] 
         atr =  self.data.loc[self.index_labels[self.offset], 'atr']
-        # ema = self.data.loc[self.index_labels[self.offset], 'ema100']         
-        # sma = self.data.loc[self.index_labels[self.offset], 'sma']
-        # rsi = self.data.loc[self.index_labels[self.offset], 'rsi'] 
-        # indicator = self.data.loc[self.index_labels[self.offset], 'indicator'] 
-        # indicator_prew = self.data.loc[self.index_labels[self.offset-1], 'indicator'] 
-        
-        # if self.haveposition:  
-            # reward += -0.1
-            # if minp <= self.sl:
-            #     done |= True
-            #     reward += -100                 
-            # elif maxp >= self.tp:
-            #     done |= True
-            #     reward += 100 * self.buy_type
-            # if action == Actions.Hold:
-            #     reward += 1.1
-        # else:
-            # reward += -0.1
-            # if self.offset - self.start_offset > 2000:
-            #     reward += -50000
-            #     done |= True
-            # if self.offset - self.start_offset > 1000:
-            #     reward += -50
-            # if self.offset - self.start_offset > 500:
-            #     reward += -20
-            # if self.offset - self.start_offset > 250:
-            #     reward += -10
+
             
         if not done and not self.haveposition:
+            winner = False                
             if action == Actions.Buy1:
                 self.open_price = closep
                 self.tp = closep + atr * 4.5
                 self.sl = closep - atr * 3
                 self.buy_type = 1
                 self.haveposition = True
-                if self.is_winner():
-                    reward += 100 * 1.5
+                winner, mp = self.is_winner()
+                if winner:
+                    reward += 100 * 1.5 * mp
                     self.profit = 1.5
                 else:
                     reward += -100
@@ -276,8 +265,9 @@ class State:
                 self.sl = closep - atr * 3
                 self.buy_type = 2
                 self.haveposition = True
-                if self.is_winner():
-                    reward += 100 * 2
+                winner, mp = self.is_winner()
+                if winner:
+                    reward += 100 * 2 * mp
                     self.profit = 2
                 else:
                     reward += -100
@@ -289,8 +279,9 @@ class State:
                 self.sl = closep - atr * 3
                 self.buy_type = 3
                 self.haveposition = True
-                if self.is_winner():
-                    reward += 100 * 3
+                winner, mp = self.is_winner()
+                if winner:
+                    reward += 100 * 3 * mp
                     self.profit = 3
                 else:
                     reward += -100
@@ -299,40 +290,19 @@ class State:
             if action == Actions.Hold:
                 tp = closep + atr * 4.5
                 sl = closep - atr * 3
-                if self.is_winner(tp=tp, sl=sl):
-                    reward += -20
+                winner, mp = self.is_winner(tp=tp, sl=sl)
+                if winner and mp == 1:
+                    reward += -10
                     tp = closep + atr * 6
-                    if self.is_winner(tp=tp, sl=sl):
-                        reward += -10                         
+                    winner, mp = self.is_winner(tp=tp, sl=sl)
+                    if winner and mp == 1:
+                        reward += -5                         
                         tp = closep + atr * 9
-                        if self.is_winner(tp=tp, sl=sl):
-                            reward += -10
+                        winner, mp = self.is_winner(tp=tp, sl=sl)
+                        if winner and mp == 1:
+                            reward += -5
                 else:
-                    reward += 0.1
-            # if action == Actions.Buy1 or action == Actions.Buy2 or action == Actions.Buy3:
-            #     if ema < closep:
-            #         reward += 5
-            #     if ema > sma:
-            #         reward += 1
-            #     if sma < ema < closep:
-            #         reward += 5
-            #     if rsi < 30:
-            #         reward += 10
-            #     if indicator > 0 and indicator_prew < 0:
-            #         reward += 10
-            #     if ema > closep:
-            #         reward -= 10
-            #     if rsi > 80:
-            #         reward -= 10
-            # if action == Actions.Hold:
-            #     if closep < sma:
-            #         reward += 0.05
-            #     if closep < ema:
-            #         reward += 0.05
-            #     if sma < ema:
-            #         reward += 0.01
-            #     if rsi > 90:
-            #         reward += 0.01
+                    reward += 5
 
         done |= self.offset > len(self.data) -2
         self.offset += 1
