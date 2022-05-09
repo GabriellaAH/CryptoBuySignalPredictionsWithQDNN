@@ -200,13 +200,13 @@ class State:
             return False, 1
         elif minp < self.sl:
             return False, 1
-        akt_open = self.data.loc[self.index_labels[self.offset], 'open'] 
         akt_close = self.data.loc[self.index_labels[self.offset], 'close'] 
-        next_close = self.data.loc[self.index_labels[self.offset-1], 'close'] 
+        next_close = self.data.loc[self.index_labels[self.offset+1], 'close'] 
+        next2_close = self.data.loc[self.index_labels[self.offset+2], 'close'] 
         mp = 1
-        if akt_open > akt_close:
+        if akt_close > next_close:
             mp = mp / 2
-        if akt_open > next_close:
+        if akt_close > next2_close:
             mp = mp / 2
         
         for i in range(self.offset+1, self.offset+50):
